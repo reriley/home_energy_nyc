@@ -1,0 +1,33 @@
+## SOURCES ##
+[ConEdReader]
+# email:        The email address of the user's ConEd account
+# password:     The password of the user's ConEd account
+# mfa_secret:   To set up a MFA secret, go to coned.com, log in and navigate to profile. Disable MFA and re-enable.
+#               Choose Google Authenticator or okta and choose a device type. When presented with the QR code, click on
+#               "Can't scan?". It should provide you with the MFA secret.
+# account_uuid: The account uuid. To find the account uuid, log into coned.com then use the browser developer
+#               tools to search for `uuid` in the network tab.
+# meter_number  The user's meter number appearing on their bill
+# measure_name: A name for the measurement when written to InfluxDB
+# database:     Name of the InfluxDB database to which ConEd measurements should be written
+email = 
+password = 
+mfa_secret = 
+account_uuid = 
+meter_number = 
+measure_name = 
+database = 
+
+[NYISOReader]
+database = 
+# Measurement Names #
+measure_name_fmix = 
+measure_name_emis = 
+
+## OUTPUTS ##
+[InfluxDBWriter]
+host = 
+port = 
+username = 
+password = 
+
