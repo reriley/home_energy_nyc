@@ -7,10 +7,9 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name='home_energy_nyc',
-    version='0.1.2',
-    description='A package for ConEd customers to take smart meter readings and upload to an instance of the InfluxDB'
-                'time-series database. The module also includes classes for querying NYISO for coincident fuel mix data'
-                'and estimating real-time grid carbon intensity.',
+    version='0.1.3',
+    description='Tools for NYC residents to download their electricity consumption data and estimate their carbon'
+                'footprint from NYISO and EPA data. ',
     long_description=README,
     long_description_content_type="text/markdown",
     url='https://github.com/reriley/home_energy_nyc',
@@ -32,7 +31,6 @@ setup(
                       'pyppeteer',
                       'pyotp',
                       'coned @ git+https://github.com/bvlaicu/coned.git#egg=coned',
-                      'nypower @ git+https://github.com/reriley/nypower.git#nypower',
                       'nyisotoolkit @ git+https://github.com/m4rz910/NYISOToolkit.git#egg=nyisotoolkit',
                       ],
 )

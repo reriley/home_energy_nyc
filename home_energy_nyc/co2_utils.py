@@ -18,11 +18,12 @@ def co2_calc(dataframe: pd.DataFrame, year=DEFAULT_YEAR):
     :return: A DataFrame with CO2 intensity in kg/MWh.
     """
     df = dataframe.copy()
-    infile = open(CURVES_FILEPATH.format(year=year), 'rb').read()  # Change to with open
-    if not infile:
+    with open(CURVES_FILEPATH.format(year=year), 'rb') as infile:
+        data = infile.read()
+    if not data:
         _logger.error('CO2 curves package {file} not found'.format(file=CURVES_FILEPATH))
     else:
-        co2_curves = pickle.loads(infile)
+        co2_curves = pickle.loads(data)
         df['total_mwh'] = 0.0
         df['co2_rate'] = 0.0
         for c in df.columns:
@@ -42,7 +43,7 @@ def generate_curves(year: int, egrid_file: str):
 
         - year: The basis year for the calculation. Should correspond to the eGRID reporting year.
 
-        - egrid_file: Filepath to the EPA eGRID data file (metric). Published at https://www.epa.gov/egrid/download-data.
+        - egrid_file: Filepath to the EPA eGRID data file (metric) (https://www.epa.gov/egrid/download-data).
     """
 
     egrid_cols = [  # First item will be set as DataFrame index
@@ -102,9 +103,8 @@ def generate_curves(year: int, egrid_file: str):
         co2_curves[v]['cum_cap'] = co2_curves[v]['cum_cap'] * nyiso_fmix_max[v] / co2_curves[v]['cum_cap'].max()
         co2_curves[v] = co2_curves[v][['cum_cap', 'co2_rate']]
 
-    outfile = open(CURVES_FILEPATH.format(year=str(year)), 'wb') # change to with open
-    pickle.dump(co2_curves, outfile)  # Write table of CO2 intensity in kg/MWh vs. total MW dispatched by fuel source
-    outfile.close()
+    with open(CURVES_FILEPATH.format(year=str(year)), 'wb') as outfile:
+        pickle.dump(co2_curves, outfile)
 
     # Check calibration against EPA published data for NYISO
     egrid_st_df = pd.read_excel(egrid_file.format(year=str(year)),

@@ -1,11 +1,11 @@
-import asyncio
+from home_energy_nyc.co2_utils import co2_calc
+import pandas as pd
+import logging
 from coned import Meter
+import asyncio
 import json
 from influxdb import DataFrameClient
-import logging
-from nypower import collector as nyiso_collector
-import pandas as pd
-from home_energy_nyc.co2_utils import co2_calc
+
 
 _logger = logging.getLogger(__name__)
 
@@ -94,6 +94,7 @@ class Reader(Connection):
 
 class NYISOReader(Reader):
 
+    URL = 'http://mis.nyiso.com/public/csv/rtfuelmix/{date}rtfuelmix.csv'
     UNIT_FMIX = 'MW'
     UNIT_EMIS = 'kg/MWh CO2 equivalent'
     KEY_FMIX = 'fuel_mix'
@@ -117,28 +118,40 @@ class NYISOReader(Reader):
                                                         unit=self.UNIT_EMIS,
                                                         database=database)
 
-
-    def query(self, days_ago: int = 0):
-        """Query the NYISO website for data since midnight on the day specified.
-        :param days_ago: The number of days before today (in Eastern Time). Defaults to zero (today).
-        """
-        self._measurements[self.KEY_FMIX].df = self._fetch_data_fmix(days_ago)
-        self._measurements[self.KEY_EMIS].df = self._co2_calc(self._measurements[self.KEY_FMIX].df)
+    def query(self):
+        """Query the NYISO website for data since midnight on the day specified."""
+        self._measurements[self.KEY_FMIX].df = self.fetch_data_fmix()
+        self._measurements[self.KEY_EMIS].df = self.co2_calc(self._measurements[self.KEY_FMIX].df)
 
     @catch_external_errors
-    def _fetch_data_fmix(self, days_ago: int = 0):
-        fuel_data = nyiso_collector.get_fuel_mix(days_ago)
-        rows = dict()
-        for k, v in fuel_data.items():
-            rows[k] = v.fuels
-        df = pd.DataFrame.from_dict(rows, orient='index')
+    def fetch_data_fmix(self):
+        today = pd.Timestamp('today', tz='US/Eastern')
+        yesterday = today - pd.offsets.Day(1)
+        df = pd.concat(
+            [
+                pd.read_csv(self.URL.format(date=yesterday.strftime('%Y%m%d'))),
+                pd.read_csv(self.URL.format(date=today.strftime('%Y%m%d')))
+            ]
+        )
+        df['Gen MW'] = df['Gen MW'].astype(int)
+        df['Time Zone'] = df['Time Zone'].map(
+            {
+                'EDT': '-0400',
+                'EST': '-0500'
+            }, na_action=None)
+        df['Time Stamp'] = df['Time Stamp'] + df['Time Zone']
+        df = df.pivot(index='Time Stamp', columns='Fuel Category', values='Gen MW')
+        df.index = pd.to_datetime(df.index)  # Why is this an unexpected type?
+
         df['Natural Gas'] = df['Dual Fuel'] + df['Natural Gas']  # Dual fuel plant almost exclusively burns gas
         df = df.drop(['Dual Fuel'], axis=1)
-        df.index = pd.to_datetime(df.index)
-        return df
+
+        last_timestamp = df.index.max()
+        first_timestamp = last_timestamp - pd.offsets.Day(1)  # To returns that past 24 hours of data
+        return df[first_timestamp:last_timestamp]
 
     @staticmethod
-    def _co2_calc(df: pd.DataFrame):
+    def co2_calc(df: pd.DataFrame):
         return co2_calc(df)
 
 
@@ -187,10 +200,10 @@ class ConEdReader(Reader):
 
     def query(self):
         """Query the ConEd website for the past 24 hours' data."""
-        self._measurements[self.KEY_USAGE].df = self._fetch_data_usage()
+        self._measurements[self.KEY_USAGE].df = self.fetch_data_usage()
 
     @catch_external_errors
-    def _fetch_data_usage(self):
+    def fetch_data_usage(self):
         loop = asyncio.get_event_loop()
         meter = Meter(
             email=self.email,

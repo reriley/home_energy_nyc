@@ -33,7 +33,8 @@ The handling of the different properties of the Measurement class is described i
 |unit|String containing the unit of measurement|Written as a tag named 'unit'|
 |tags|A dictionary containing any additional user-defined tags|Written as tags named for the dict keys|
 |database|A string containing the name of the destination database|Writes to matching InfluxDB database|
-|df|A Pandas DataFrame containing the time-series data|Each column is written as an InfluxDB series|
+|df|A Pandas DataFrame containing the time-series data with timestamp in UTC|Each column is written as an InfluxDB
+ series|
 
 ### Utilities
 The `co2_utils.py` module contains the `co2_calc` function to convert fuel mix data to estimated carbon intensity data.
