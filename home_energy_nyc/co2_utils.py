@@ -11,13 +11,13 @@ CURVES_FILEPATH = path.join(path.dirname(__file__), 'database/co2_curves{year}.p
 DEFAULT_YEAR = 2019
 
 
-def co2_calc(dataframe: pd.DataFrame, year=DEFAULT_YEAR):
+def calc_grid_co2_avg(dataframe: pd.DataFrame, year=DEFAULT_YEAR):
     """
     :param dataframe: A DataFrame containing fuel mix data.
     :param year: The basis year. There must be a corresponding curve package - see README / Generating CO2 curves.
     :return: A DataFrame with CO2 intensity in kg/MWh.
     """
-    df = dataframe.copy()
+    df = dataframe.copy().rename_axis('', axis='columns')
     with open(CURVES_FILEPATH.format(year=year), 'rb') as infile:
         data = infile.read()
     if not data:
@@ -120,6 +120,8 @@ def co2_historical_total(year):
     df_mix = NYISOData(dataset='fuel_mix_5m', year=str(year)).df
     df_mix['Natural Gas'] = df_mix['Dual Fuel'] + df_mix['Natural Gas']  # Dual fuel plant almost exclusively burns gas
     df_mix = df_mix.drop(['Dual Fuel'], axis=1)
-    df_co2 = co2_calc(df_mix, year=year)
+    df_co2 = calc_grid_co2_avg(df_mix, year=year)
+    df_mix['total_mwh'] = df_mix.loc[:].sum(axis=1)
+    df_co2 = pd.concat([df_co2, df_mix[['total_mwh']]], axis=1)
     total = np.sum(df_co2['total_mwh'] * df_co2['co2_rate']) / np.sum(df_co2['total_mwh'])
     return total

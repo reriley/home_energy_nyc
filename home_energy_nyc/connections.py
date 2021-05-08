@@ -1,4 +1,4 @@
-from home_energy_nyc.co2_utils import co2_calc
+from home_energy_nyc.co2_utils import calc_grid_co2_avg
 import pandas as pd
 import logging
 from coned import Meter
@@ -94,11 +94,12 @@ class Reader(Connection):
 
 class NYISOReader(Reader):
 
-    URL = 'http://mis.nyiso.com/public/csv/rtfuelmix/{date}rtfuelmix.csv'
-    UNIT_FMIX = 'MW'
-    UNIT_EMIS = 'kg/MWh CO2 equivalent'
     KEY_FMIX = 'fuel_mix'
+    URL_FMIX = 'http://mis.nyiso.com/public/csv/rtfuelmix/{date}rtfuelmix.csv'
+    UNIT_FMIX = 'MW'
+
     KEY_EMIS = 'emissions'
+    UNIT_EMIS = 'kg_CO2eq/MWh'
 
     def __init__(self,
                  measure_name_fmix: str,
@@ -129,8 +130,8 @@ class NYISOReader(Reader):
         yesterday = today - pd.offsets.Day(1)
         df = pd.concat(
             [
-                pd.read_csv(self.URL.format(date=yesterday.strftime('%Y%m%d'))),
-                pd.read_csv(self.URL.format(date=today.strftime('%Y%m%d')))
+                pd.read_csv(self.URL_FMIX.format(date=yesterday.strftime('%Y%m%d'))),
+                pd.read_csv(self.URL_FMIX.format(date=today.strftime('%Y%m%d')))
             ]
         )
         df['Gen MW'] = df['Gen MW'].astype(int)
@@ -147,18 +148,18 @@ class NYISOReader(Reader):
         df = df.drop(['Dual Fuel'], axis=1)
 
         last_timestamp = df.index.max()
-        first_timestamp = last_timestamp - pd.offsets.Day(1)  # To returns that past 24 hours of data
+        first_timestamp = last_timestamp - pd.offsets.Day(1)  # Returns the past 24 hours of data
         return df[first_timestamp:last_timestamp]
 
     @staticmethod
     def co2_calc(df: pd.DataFrame):
-        return co2_calc(df)
+        return calc_grid_co2_avg(df)
 
 
 class ConEdReader(Reader):
 
-    UNIT = 'kWh'
     KEY_USAGE = 'usage'
+    UNIT_USAGE = 'kWh'
 
     def __init__(self,
                  email: str,
@@ -195,7 +196,7 @@ class ConEdReader(Reader):
         self.browser_path = browser_path
 
         self._measurements[self.KEY_USAGE] = Measurement(name=measure_name,
-                                                         unit=self.UNIT,
+                                                         unit=self.UNIT_USAGE,
                                                          database=database)
 
     def query(self):
